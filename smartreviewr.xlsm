@@ -1,0 +1,671 @@
+
+'Global variables
+
+Dim objWrkSht1, objXL
+Dim RowAppend As Integer
+'Dim rowappend1 As Integer
+Dim LastRow As Long
+Dim ResponseForBlankCells As Integer
+Public BuildName As String
+Dim SerialNumber As Integer
+
+'The ImportWordTable() module performs task of taking/copying the contents of interested test table from world document and than
+'pastes the contents to the existing workbook.
+
+Sub ImportWordTable()
+
+
+
+Dim wdDoc As Object
+Dim wdFileName As Variant, DocIndex As Integer
+Dim PresentFileName As String
+Dim NoOfTables As Long 'table number in Word
+Dim RowIndex As Long 'row index in Excel
+Dim ColumnIndex As Long 'column index in Excel
+Dim PresentTableNo As Long
+Dim RowNoInPresentDoc As Long
+Dim Colcount As Long
+Dim RowCount As Long
+Dim UnprotectWorkBook As String
+Dim TestNoCount As Long
+RowAppend = 0
+
+wdFileName = Application.GetOpenFilename(FileFilter:="word files_2003_07 (*.doc), *.doc,Word files (*.docx),*.docx", MultiSelect:=True)
+ActiveWindow.DisplayHorizontalScrollBar = True
+
+
+On Error GoTo ErrorHandler
+Call Unprotect
+For DocIndex = 1 To UBound(wdFileName)
+Set wdDoc = GetObject(wdFileName(DocIndex)) 'open Word file
+    'Sheet1.Cells(6, 50) = wdFileName(DocIndex)
+   ' FileNameLength = Len(wdFileName(DocIndex))
+NoOfTables = wdDoc.tables.Count  'Total number of tables found in world table.
+
+If NoOfTables = 0 Then
+    MsgBox "This document contains no tables,So Document is excluded!", _
+    vbExclamation, "Import Word Table"
+ElseIf NoOfTables > 1 Then
+    NoOfTables = wdDoc.tables.Count
+ 
+End If
+TestNoCount = 0 '''''''''''''''
+With wdDoc '''''''''''''''''''''
+SerialNumber = 0
+       For PresentTableNo = 1 To NoOfTables
+        With .tables(PresentTableNo) '''''''''''''''''''''
+        UsercolumnEnter = Sheet1.Cells(10, 11)
+        Dim userentervalue As String
+        userentervalue = Sheet1.Cells(12, 11)
+      
+          Sheet1.Cells(6, 650) = WorksheetFunction.Clean(.cell(1, 1).Range.Text)
+             If (Sheet1.Cells(6, 650) = Sheet1.Cells(9, 11)) Then 'Search Test Keyword
+            TestNoCount = TestNoCount + 1 'To calculate the number of Test keyword
+                    For RowIndex = 2 To .rows.Count
+                    'For ColumnIndex = 1 To .Columns.Count
+                   ' If WorksheetFunction.Clean(.cell(RowIndex, 1).Range.Text) = "" Then
+                   .cell(RowIndex, 1) = ""
+                    SerialNumber = SerialNumber + 1
+                     .cell(RowIndex, 1) = SerialNumber
+                     '.cell(RowIndex, UsercolumnEnter).Font.Colour = wdColourGreen
+                     
+                   '  .cell(RowIndex, UsercolumnEnter).Range.ParagraphFormat.Alignment = wdAlignParagraphCenterUnfortunately
+                     'End If
+                        On Error Resume Next
+                       'On Error GoTo ErrCatcher
+                  '  Next ColumnIndex
+                 Next RowIndex
+            End If
+           Sheet1.Cells(6, 650).ClearContents
+  
+        End With
+ErrCatcher:
+    Next PresentTableNo
+    If (TestNoCount = 0) Then
+    Call UnableToSearch
+    End If
+End With
+ '   Call delblankrows
+    'Call FilterField
+    
+   '   Sheet1.Cells(12, 6) = "Marked as " & "'" & Sheet1.Cells(6, 11) & "'"
+  ' Sheet1.Cells(12, 8) = "Marked as " & "'" & Sheet1.Cells(7, 11) & "'"
+  ' Sheet1.Cells(12, 10) = "Marked as " & "'" & Sheet1.Cells(8, 11) & "'"
+
+    
+    'Sheet1.Cells(6, 50).ClearContents
+    Worksheets("Review").Activate
+    wdDoc.Save
+    wdDoc.Close
+    
+    Set wdDoc = Nothing
+    Next DocIndex
+   ' rowappend1 = 0
+    RowAppend = 0
+   
+'Call Protect
+
+
+Exit Sub
+ErrorHandler:
+    'Call Protect
+    MsgBox "No files were selected, action cancelled."
+
+End Sub
+
+'The Sub FilterField() extracts the contents in the sheets based on users input.
+'For e.g. If filter input is "YES" then the contents with only "YES" fields are captured.
+
+Sub FilterField()
+
+Dim YesNoCount As Long
+Dim NOCount As Long
+Dim YESCount As Long
+Dim NACount As Long
+
+filtercolumnnumber = Sheet1.Cells(4, 11)
+
+With objWrkSht1
+
+CompleteDocumentCount = objWrkSht1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+
+            .AutoFilterMode = False
+
+                With .Range("A1:O1")
+
+                     .AutoFilter
+
+                   
+                     
+                    .AutoFilter Field:=filtercolumnnumber, Criteria1:=Sheet1.Cells(7, 11), Operator:=xlOr, Criteria2:=Sheet1.Cells(6, 11)
+                     
+                    YesNoCount = objWrkSht1.AutoFilter.Range.Columns(filtercolumnnumber).SpecialCells(xlVisible).Count - 1
+                    
+                    '6 is the value for ResponseForBlankCells returned, Denotes
+                    'User requires blank cells for his calculation.
+                    
+                    
+                    .AutoFilter Field:=filtercolumnnumber, Criteria1:=Sheet1.Cells(8, 11)
+                    
+                    NACount = objWrkSht1.AutoFilter.Range.Columns(filtercolumnnumber).SpecialCells(xlVisible).Count - 1
+                    
+                     .AutoFilter Field:=filtercolumnnumber, Criteria1:=""
+                    
+                    BlankCount = objWrkSht1.AutoFilter.Range.Columns(filtercolumnnumber).SpecialCells(xlVisible).Count - 1
+                    
+                                      
+                    .AutoFilter Field:=filtercolumnnumber, Criteria1:=Sheet1.Cells(5, 11)
+                     
+                   PassVariableCount = objWrkSht1.AutoFilter.Range.Columns(filtercolumnnumber).SpecialCells(xlVisible).Count - 1
+                     
+                    
+                    YesNoNABlankCount = YesNoCount + NACount + BlankCount
+                    
+                    '+1 is added to remove (lastRow and AbleToFind rows)
+                    
+                    otherscount = CompleteDocumentCount - (YesNoNABlankCount + PassVariableCount + 1)
+                    
+                    CompleteDocumentCount = YesNoNABlankCount + otherscount
+                    
+                   '  YesNoNABlankCount = YesNoCount + NACount + otherscount
+                      
+                    .AutoFilter Field:=filtercolumnnumber, Criteria1:=Sheet1.Cells(6, 11)
+                     
+                    YESCount = objWrkSht1.AutoFilter.Range.Columns(filtercolumnnumber).SpecialCells(xlVisible).Count - 1
+                 
+                               
+                    .AutoFilter Field:=filtercolumnnumber, Criteria1:=Sheet1.Cells(7, 11)
+                     
+                    NOCount = objWrkSht1.AutoFilter.Range.Columns(filtercolumnnumber).SpecialCells(xlVisible).Count - 1
+                                      
+                    Call calculate(CompleteDocumentCount, YESCount, NOCount, NACount, BlankCount, otherscount, YesNoCount)
+                                     
+                End With
+ End With
+ Set objWrkSht1 = Nothing
+
+End Sub
+
+'The delblankrows() function deletes the empty rows existing in the sheets(workbook) which is formed
+'after copying the contents from world documents.
+Sub delblankrows()
+
+Dim s1 As Worksheet
+Dim tmpR As Range
+Dim RowCount As Long, Colcount As Long, i As Long, j As Long, k As Boolean
+Set s1 = objWrkSht1
+Set tmpR = s1.UsedRange
+RowCount = tmpR.rows.Count
+Colcount = tmpR.Columns.Count
+'Starts from bottom row and looks for non-empty cells from left to right.
+'Moves to row above if non-empty cell is found.
+'If none is found, then deletes row and shifts values up.
+For i = RowCount To 1 Step -1
+    k = 0
+    For j = 1 To Colcount
+        If tmpR.Value2(i, j) <> "" Then
+            k = 1
+            Exit For
+        End If
+    Next j
+    If k = 0 Then
+        tmpR.rows(i).Delete Shift:=xlUp
+    End If
+Next i
+
+End Sub
+
+'Sub clear() function deletes the contents of Review sheet and it's corresponding newly added sheets'
+
+Sub clear()
+
+
+
+LastRowInSheet1 = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+If (LastRowInSheet1 = 12) Then
+    MsgBox "There is no review logs found to clear!!!"
+Else
+        ResponseForclearCells = MsgBox(prompt:="Are you sure you want to clear the Review History? ", Buttons:=vbYesNo)
+        
+        
+        If (ResponseForclearCells = 6) Then
+            Call Unprotect
+            GetOriginalFontColor
+            LastRowInSheet1 = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+            For FirstEditableRow = 13 To LastRowInSheet1
+            Sheet1.Cells(FirstEditableRow, 3).ClearContents
+            Sheet1.Cells(FirstEditableRow, 4).ClearContents
+            Sheet1.Cells(FirstEditableRow, 5).ClearContents
+            Sheet1.Cells(FirstEditableRow, 6).ClearContents
+            Sheet1.Cells(FirstEditableRow, 7).ClearContents
+            Sheet1.Cells(FirstEditableRow, 8).ClearContents
+            Sheet1.Cells(FirstEditableRow, 9).ClearContents
+            Sheet1.Cells(FirstEditableRow, 10).ClearContents
+            Sheet1.Cells(FirstEditableRow, 11).ClearContents
+            Sheet1.Cells(FirstEditableRow, 12).ClearContents
+            Sheet1.Cells(FirstEditableRow, 13).ClearContents
+            Sheet1.Cells(FirstEditableRow, 14).ClearContents
+            Sheet1.Cells(FirstEditableRow, 15).ClearContents
+            Next
+            
+            'For RowCountFont = 13 To LastRowFont
+            'For ColumnCountFont = 12 To 15
+            'Sheet1.Cells(RowCountFont, ColumnCountFont).Font.ColorIndex = 1
+            'Next ColumnCountFont
+            'Next RowCountFont
+            'GetOriginalFontColor
+            Sheet1.Cells(6, 50).ClearContents
+            Dim ws As Worksheet
+            On Error Resume Next
+            Set ws = Worksheets("Review")
+            On Error GoTo 0
+            'make sure we have at least one visible sheet
+            If Not ws Is Nothing Then
+            Application.DisplayAlerts = False
+            For Each ws In ThisWorkbook.Worksheets
+            If Not ws.Name = "Review" Then
+            If Not ws.Name = "Help" Then ws.Delete
+            End If
+        
+            Next ws
+            Application.DisplayAlerts = False
+            End If
+        'delete all the others
+        Call Protect
+        MsgBox "Successfully cleared review logs!!!"
+        End If
+End If
+
+'GetOriginalFontColor
+
+End Sub
+
+'Function calculate() Calculates the percentage of blanks filled with "YES","NO","NA" and blanks respectively
+
+Function calculate(ForCentPercent, MarkedAsYes, MarkedAsNo, MarkedAsNA, BlankSpace, Unmatched, YesNoCount)
+LastRow = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+ 
+If (ResponseForBlankCells = 6) Then
+
+        TotalExecution = (MarkedAsYes + MarkedAsNo)
+        Sheet1.Cells(LastRow, 4) = TotalExecution
+        Sheet1.Cells(LastRow, 6) = MarkedAsYes
+        Sheet1.Cells(LastRow, 8) = MarkedAsNo
+        Sheet1.Cells(LastRow, 10) = MarkedAsNA
+        Sheet1.Cells(LastRow, 12) = BlankSpace
+        
+        '  If ((Sheet1.Cells(LastRow, 12) > 1) Or (Sheet1.Cells(LastRow, 12) = 1)) Then
+        If (Not (Sheet1.Cells(LastRow, 12) = 0)) Then
+        Sheet1.Cells(LastRow, 12).Font.ColorIndex = 3
+        End If
+        
+        
+        Sheet1.Cells(LastRow, 14) = Unmatched
+        'If ((Sheet1.Cells(LastRow, 14) > 1) Or (Sheet1.Cells(LastRow, 14) = 1)) Then
+        If (Not (Sheet1.Cells(LastRow, 14) = 0)) Then
+        Sheet1.Cells(LastRow, 14).Font.ColorIndex = 3
+        End If
+        
+        TotalPercentExecution = YesNoCount / ForCentPercent
+        Sheet1.Cells(LastRow, 5) = TotalPercentExecution
+        Sheet1.Cells(LastRow, 7) = (ForCentPercent - (MarkedAsNo + MarkedAsNA + BlankSpace + Unmatched)) / ForCentPercent
+        Sheet1.Cells(LastRow, 9) = (ForCentPercent - (MarkedAsYes + MarkedAsNA + BlankSpace + Unmatched)) / ForCentPercent
+        Sheet1.Cells(LastRow, 11) = (ForCentPercent - (MarkedAsYes + MarkedAsNo + BlankSpace + Unmatched)) / ForCentPercent
+        Sheet1.Cells(LastRow, 13) = (ForCentPercent - (MarkedAsYes + MarkedAsNo + MarkedAsNA + Unmatched)) / ForCentPercent
+        If (Not (Sheet1.Cells(LastRow, 13) = 0)) Then
+        Sheet1.Cells(LastRow, 13).Font.ColorIndex = 3
+        End If
+        
+        
+        Sheet1.Cells(LastRow, 15) = Unmatched / ForCentPercent
+        If (Not (Sheet1.Cells(LastRow, 15) = 0)) Then
+        Sheet1.Cells(LastRow, 15).Font.ColorIndex = 3
+        End If
+ 
+  Else
+    'ForCentPercent = ForCentPercent - BlankSpace
+    ForCentPercent = ForCentPercent - BlankSpace
+    BlankSpace = 0
+    TotalExecution = (MarkedAsYes + MarkedAsNo)
+    Sheet1.Cells(LastRow, 4) = TotalExecution
+    Sheet1.Cells(LastRow, 6) = MarkedAsYes
+    Sheet1.Cells(LastRow, 8) = MarkedAsNo
+    Sheet1.Cells(LastRow, 10) = MarkedAsNA
+    Sheet1.Cells(LastRow, 12) = BlankSpace
+    
+    If (Not (Sheet1.Cells(LastRow, 12) = 0)) Then
+    Sheet1.Cells(LastRow, 12).Font.ColorIndex = 3
+    End If
+    
+    Sheet1.Cells(LastRow, 14) = Unmatched
+    If (Not (Sheet1.Cells(LastRow, 14) = 0)) Then
+    Sheet1.Cells(LastRow, 14).Font.ColorIndex = 3
+    End If
+    
+    'ForCentPercent = ForCentPercent - BlankSpace
+    BlankSpace = 0
+    '  Sheet1.Cells(LastRow, 4) = (ForCentPercent - (MarkedAsNo + MarkedAsNA + BlankSpace + Unmatched)) / ForCentPercent
+    ' Sheet1.Cells(LastRow, 5) = (ForCentPercent - (MarkedAsYes + MarkedAsNA + BlankSpace + Unmatched)) / ForCentPercent
+    ' Sheet1.Cells(LastRow, 6) = (ForCentPercent - (MarkedAsYes + BlankSpace + MarkedAsNo + Unmatched)) / ForCentPercent
+    ' Sheet1.Cells(LastRow, 7) = (ForCentPercent - (MarkedAsYes + MarkedAsNo + MarkedAsNA + Unmatched)) / ForCentPercent
+    'Sheet1.Cells(LastRow, 8) = (ForCentPercent - (MarkedAsYes + MarkedAsNo + MarkedAsNA + BlankSpace)) / ForCentPercent
+    
+    TotalPercentExecution = YesNoCount / ForCentPercent
+    Sheet1.Cells(LastRow, 5) = TotalPercentExecution
+    Sheet1.Cells(LastRow, 7) = (ForCentPercent - (MarkedAsNo + MarkedAsNA + BlankSpace + Unmatched)) / ForCentPercent
+    Sheet1.Cells(LastRow, 9) = (ForCentPercent - (MarkedAsYes + MarkedAsNA + BlankSpace + Unmatched)) / ForCentPercent
+    Sheet1.Cells(LastRow, 11) = (ForCentPercent - (MarkedAsYes + MarkedAsNo + BlankSpace + Unmatched)) / ForCentPercent
+    Sheet1.Cells(LastRow, 13) = BlankSpace
+    
+    If (Not (Sheet1.Cells(LastRow, 13) = 0)) Then
+    Sheet1.Cells(LastRow, 13).Font.ColorIndex = 3
+    End If
+    
+    Sheet1.Cells(LastRow, 15) = Unmatched / ForCentPercent
+    
+    If (Not (Sheet1.Cells(LastRow, 15) = 0)) Then
+    Sheet1.Cells(LastRow, 15).Font.ColorIndex = 3
+    End If
+  
+
+    End If
+  
+    
+End Function
+
+'Sub addsheet() keeps on adding sheets in the current workbook whenever a new word documents is took/opened for caluculation
+Sub addsheet()
+On Error GoTo errorhand
+Set objXL = ActiveWorkbook
+Set objWrkSht1 = objXL.Worksheets.Add(, objXL.Sheets(objXL.Sheets.Count))
+PresentFileName = Sheet1.Cells(LastRow, 3)
+FileNameLength = Len(PresentFileName)
+    
+    If (FileNameLength > 30) Then
+    ExtraCharInFileName = FileNameLength - 30
+        objWrkSht1.Name = Left(Sheet1.Cells(LastRow, 3).Value, FileNameLength - ExtraCharInFileName)
+    Else
+        objWrkSht1.Name = Sheet1.Cells(LastRow, 3)
+    End If
+    
+Exit Sub
+errorhand:
+   Application.DisplayAlerts = False
+    Sheet1.Cells(LastRow, 3) = ""
+   objWrkSht1.Delete
+   MsgBox "You cannot open two documents of same name!!!!!"
+   Call exitmain
+      
+End Sub
+
+'Sub Protect()protects the sheet's and workbook's against accidental/deleberate changes intended by the tool user
+Sub Protect()
+    Dim S As Object
+    Dim Protect As String, ShtName As String
+    Protect = "pavajay46"
+    ActiveWorkbook.Protect Structure:=True, Windows:=False, Password:=ProtectWorkBook
+    Sheet1.Protect Protect
+    End Sub
+
+'Sub Unprotect() automatically unprotect's the sheet when new test document files needs to added,when history needs to be cleared.After calculation is over,Protect() function locks the
+'sheet for further modifications.
+Sub Unprotect()
+
+UnprotectWorkBook = "pavajay46"
+ActiveWorkbook.Unprotect Password:=UnprotectWorkBook
+Sheet1.Unprotect UnprotectWorkBook
+
+
+ End Sub
+     
+Sub UnableToSearch()
+'Dim ws As Worksheet
+'Set ws = Worksheets("Sheet1")
+
+MsgBox "The intended keyword not found in the current document"
+LastRowInFirstSheet = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+If ((LastRowInFirstSheet > 12) & (Not (Worksheets(Sheet1).Present))) Then
+Sheet1.Cells(LastRowInFirstSheet, 3).ClearContents
+Worksheets(Worksheets.Count).Select.Delete
+'Sheets(Sheets.Count).Select.Delete
+End If
+End Sub
+
+
+'This function is used to save the report generated by the tool.Sheet1 or Review contents
+'are stored in a newwoorkbook and saved
+
+Sub Generate()
+'GenerateReport.Label1 = "Review Report"
+'GenerateReport.Name = "Review Report"
+'BuildName = GenerateReport.TextBox1.Text
+
+'UserFormsName = "Generate Report"
+'VBA.UserForms.Add(UserFormsName).Show
+    GenerateReport.Caption = "Generate Report"
+    GenerateReport.TextBox1.Text = "Product_Build Number"
+  
+  LastRow1 = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+  LastRowInSheet1 = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+If (LastRowInSheet1 = 12) Then
+MsgBox "There is no Review log found to Generate a report"
+Else
+
+ 
+
+Filenames = Display()
+If ((Filenames = "Empty") Or (Filenames = "")) Then
+Exit Sub
+End If
+filepath = ThisWorkbook.Path
+
+Dim NewBook As Workbook
+Set NewBook = Workbooks.Add
+    
+    With NewBook
+        .Title = Filenames
+        On Error GoTo ErrorForDuplication
+        .SaveAs FileName:=filepath & "\" & Filenames & ".xlsx"
+    End With
+    NewBook.Sheets(1).Cells(12, 3).ColumnWidth = 45.86
+    NewBook.Sheets(1).Cells(12, 4).RowHeight = 10.29
+    NewBook.Sheets(1).Cells(12, 5).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 6).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 7).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 8).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 9).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 10).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 11).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 12).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 13).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 14).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 15).ColumnWidth = 10.29
+    NewBook.Sheets(1).Cells(12, 3).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 4).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 5).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 6).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 7).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 8).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 9).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 10).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 11).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 12).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 13).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 14).RowHeight = 33
+    NewBook.Sheets(1).Cells(12, 15).RowHeight = 33
+
+    Dim LastRow As Range
+    Sheet1.Range("C10:O12").Copy
+    NewBook.Sheets(1).Range("C10:O12").PasteSpecial
+    NewBook.Sheets(1).Cells(10, 3) = NewBook.Sheets(1).Cells(10, 3) & " of " & Filenames
+    
+    
+    For Row = 13 To LastRow1
+        For Column = 3 To 15
+            Sheet1.Cells(Row, Column).Copy
+            NewBook.Sheets(1).Cells(Row, Column).PasteSpecial
+        Next Column
+    Next Row
+        
+    NewBook.Sheets(1).Cells(LastRow1 + 1, 3) = "The report was generated by SmartReviewerô "
+    NewBook.Sheets(1).Cells(LastRow1 + 2, 3) = " The File was saved on  " & Date & "  at  " & Time
+    
+    Dim tmpR As Range
+    For i = 1 To 5
+        NewBook.Sheets(1).rows(i).Delete Shift:=xlUp
+    Next i
+    
+    NewBook.Sheets(1).Columns(1).Delete Shift:=xlLeft
+    Dim Protect As String, ShtName As String
+    Protect = "pavajay46"
+    NewBook.Protect Structure:=True, Windows:=False, Password:=ProtectWorkBook
+    NewBook.Sheets(1).Protect
+    
+    NewBook.Save
+    NewBook.Close False
+    
+    MsgBox " The Report was succesfully saved at " & filepath & "\" & Filenames
+        
+    Exit Sub
+ErrorForDuplication:
+    MsgBox "Action to save the data has been cancelled!!!"
+    NewBook.Close
+    End If
+        
+End Sub
+
+
+Function Display()
+
+    GenerateReport.Show
+    Display = BuildName
+    If ((Display = "Empty") Or (Display = "")) Then
+    Exit Function
+    End If
+   
+End Function
+Sub Help()
+Sheet4.Activate
+End Sub
+Sub UpdateField()
+
+    Unprotect
+    
+    Sheet1.Cells(12, 6) = "Marked as " & "'" & Sheet1.Cells(6, 11) & "'"
+    Sheet1.Cells(12, 8) = "Marked as " & "'" & Sheet1.Cells(7, 11) & "'"
+    Sheet1.Cells(12, 10) = "Marked as " & "'" & Sheet1.Cells(8, 11) & "'"
+    
+    MsgBox "All Review Configuration details are updated successfully"
+    Protect
+    
+End Sub
+
+Sub Back()
+Sheet1.Activate
+End Sub
+
+
+
+Sub PDFGenerate()
+
+GenerateReport.TextBox1.Text = "Product_Build Number"
+LastRowInSheetPDF = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+    If (LastRowInSheet1 = 12) Then
+        MsgBox "There is no history found to Generate report"
+        Else
+        
+        Filenames = Display()
+        If ((Filenames = "Empty") Or (Filenames = "")) Then
+         Exit Sub
+        End If
+        filepath = ThisWorkbook.Path
+        Dim NewBook As Workbook
+        Set NewBook = Workbooks.Add
+        
+        NewBook.Sheets(1).Cells(12, 3).ColumnWidth = 45.86
+        NewBook.Sheets(1).Cells(12, 4).RowHeight = 9
+        NewBook.Sheets(1).Cells(12, 5).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 6).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 7).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 8).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 9).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 10).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 11).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 12).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 13).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 14).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 15).ColumnWidth = 9
+        NewBook.Sheets(1).Cells(12, 3).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 4).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 5).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 6).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 7).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 8).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 9).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 10).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 11).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 12).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 13).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 14).RowHeight = 33
+        NewBook.Sheets(1).Cells(12, 15).RowHeight = 33
+        
+        Dim LastRow As Range
+        Sheet1.Range("C10:O12").Copy
+        NewBook.Sheets(1).Range("C10:O12").PasteSpecial
+        NewBook.Sheets(1).Cells(10, 3) = NewBook.Sheets(1).Cells(10, 3) & " of " & Filenames
+        For Row = 13 To LastRowInSheetPDF
+        For Column = 3 To 15
+            Sheet1.Cells(Row, Column).Copy
+            NewBook.Sheets(1).Cells(Row, Column).PasteSpecial
+        Next Column
+        Next Row
+        
+        NewBook.Sheets(1).Cells(LastRowInSheetPDF + 2, 3) = "The report was generated by SmartReviewerô on " & Date & "  at  " & Time
+        Dim tmpR As Range
+        For i = 1 To 5
+         NewBook.Sheets(1).rows(i).Delete Shift:=xlUp
+        Next i
+        NewBook.Sheets(1).Columns(1).Delete Shift:=xlLeft
+              
+        With NewBook.Sheets(1).PageSetup
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = 1
+        End With
+        NewBook.Sheets(1).ExportAsFixedFormat xlTypePDF, filepath & "\" & Filenames
+        NewBook.Close False
+        MsgBox " The Report was succesfully saved at " & filepath & "\" & Filenames
+        Exit Sub
+ErrorForDuplication:
+        MsgBox "Action to save the data has been cancelled!!!!!"
+        NewBook.Close
+    End If
+
+End Sub
+ 
+Sub exitmain()
+Sheet1.Activate
+Code: End
+End Sub
+
+
+'The GetOriginalFontColor() Module changes the Font color to black color which is the default color.
+
+Sub GetOriginalFontColor()
+
+LastRowFont = Sheet1.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+Dim RowCountFont As Long
+Dim ColumnCountFont As Long
+
+For RowCountFont = 13 To LastRowFont + 1
+For ColumnCountFont = 12 To 15
+Sheet1.Cells(RowCountFont, ColumnCountFont).Font.ColorIndex = 1
+Next ColumnCountFont
+Next RowCountFont
+ 
+End Sub
+
+
+
+
+
